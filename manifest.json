@@ -1,0 +1,22 @@
+{
+  "name": "振動検知マップ",
+  "short_name": "振動マップ",
+  "description": "車・バイクの振動を検知して地図に記録するアプリ",
+  "start_url": "/vibration-map.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a73e8",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
