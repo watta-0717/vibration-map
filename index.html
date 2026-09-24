@@ -475,11 +475,13 @@
         var v = VEHICLES[currentVehicle];
         if (!sensorRunning && kmh >= v.moveThreshKmh) startVibrationSensor();
         checkProximityWarning(pos.coords.latitude, pos.coords.longitude);
-        // 地図を現在地に追従
-        map.easeTo({
-          center: [pos.coords.longitude, pos.coords.latitude],
-          duration: 500
-        });
+        // 移動中（3km/h以上）のみ地図を追従、停止中はスクロール自由
+        if (kmh >= 3) {
+          map.easeTo({
+            center: [pos.coords.longitude, pos.coords.latitude],
+            duration: 500
+          });
+        }
       },
       function() { document.getElementById('gps-text').textContent = 'GPS監視失敗'; },
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 }
