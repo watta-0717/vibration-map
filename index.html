@@ -205,7 +205,7 @@
     .vib-marker.bike .marker-label { transform: rotate(-45deg); }
     .vib-marker.severe { background: var(--gm-red) !important; }
 
-    .maplibregl-popup-content { background: #fff !important; color: var(--gm-text) !important; border: none !important; border-radius: 8px !important; padding: 10px 14px !important; font-size: 12px !important; }
+    .maplibregl-popup-content { background: #fff !important; color: var(--gm-text) !important; border: none !important; border-radius: 8px !important; padding: 10px 14px !important; font-size: 12px !important; box-shadow: 0 2px 12px rgba(0,0,0,0.15) !important; }
     .popup-vehicle { font-size: 11px; font-weight: 700; margin-bottom: 4px; display: inline-block; padding: 2px 8px; border-radius: 99px; color: #fff; }
     .popup-vehicle.car  { background: var(--car-color); }
     .popup-vehicle.bike { background: var(--bike-color); }
@@ -216,35 +216,18 @@
 </head>
 <body>
 
-<!-- ===== Step1: 乗り物選択画面 ===== -->
-<div class="select-overlay" id="select-overlay">
-  <div class="select-title">振動<span>検知</span>マップ</div>
-  <div class="select-desc">乗り物を選択してください</div>
-  <div class="vehicle-options">
-    <div class="vehicle-card car" id="car-card" onclick="selectVehicle('car')">
-      <div class="vehicle-icon">🚗</div>
-      <div class="vehicle-name">車</div>
-      <div class="vehicle-thresh">0.6 m/s〜</div>
-    </div>
-    <div class="vehicle-card bike" id="bike-card" onclick="selectVehicle('bike')">
-      <div class="vehicle-icon">🏍️</div>
-      <div class="vehicle-name">バイク</div>
-      <div class="vehicle-thresh">0.6 m/s〜</div>
-    </div>
-  </div>
-</div>
+
 
 <!-- ===== Step2: 権限取得画面 ===== -->
 <div class="perm-overlay hidden" id="perm-overlay">
-  <div class="perm-icon" id="perm-icon">🏍️</div>
+  <div class="perm-icon">🏍️</div>
   <div class="perm-title">振動<span>検知</span>マップ</div>
-  <div class="perm-desc" id="perm-desc">
+  <div class="perm-desc">
     タップしてセンサーと位置情報の権限を許可してください。<br><br>
     移動を検知すると振動センサーが起動し、<br>
     0.6 m/s 超の振動を地図に記録します。
   </div>
   <button class="perm-btn" id="perm-btn" onclick="requestPermissions()" style="background:#e8710a;">開始する</button>
-  <div class="back-link" onclick="backToSelect()">戻る</div>
 </div>
 
 <!-- ===== ヘッダー ===== -->
@@ -253,26 +236,41 @@
   <div class="mode-badge" id="mode-badge" style="display:none;"></div>
   <div class="status-text" id="status-text">初期化中...</div>
   <div class="count-badge" id="count-badge">0 件</div>
+
 </div>
 
 <!-- ===== 地図 ===== -->
 <div id="map"></div>
 
-<!-- 警告バナー -->
-<div id="warn-banner" style="
-  position:fixed; top:64px; left:50%; transform:translateX(-50%);
-  background:#ea4335; color:#fff;
-  padding:12px 20px; border-radius:10px;
-  font-size:14px; font-weight:700;
-  box-shadow:0 4px 12px rgba(0,0,0,0.3);
-  z-index:100; display:none;
-  white-space:nowrap; letter-spacing:0.03em;
-  transition: opacity 0.3s;
-">⚠️ 道が悪くなっています、ご注意ください</div>
+<!-- 警告アラート -->
+<div id="warn-banner" style="display:none;">
+  <div id="warn-overlay" style="
+    position:fixed; inset:0;
+    background:rgba(234,67,53,0.15);
+    z-index:98; pointer-events:none;
+    animation: flash-bg 0.5s ease infinite alternate;
+  "></div>
+  <div id="warn-card" style="
+    position:fixed; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    background:#ea4335; color:#fff;
+    padding:24px 28px; border-radius:16px;
+    font-size:18px; font-weight:700;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4);
+    z-index:99; text-align:center;
+    min-width:280px; line-height:1.6;
+    letter-spacing:0.03em;
+  ">
+    <div style="font-size:36px;margin-bottom:8px;">⚠️</div>
+    <div>道が悪くなっています</div>
+    <div style="font-size:14px;font-weight:500;margin-top:4px;opacity:0.9;">ご注意ください</div>
+  </div>
+</div>
 
 <style>
   #warn-banner.show { display:block; animation: warn-in 0.3s ease; }
-  @keyframes warn-in { from{opacity:0;transform:translateX(-50%) translateY(-10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+  @keyframes warn-in { from{opacity:0} to{opacity:1} }
+  @keyframes flash-bg { from{opacity:0} to{opacity:1} }
 </style>
 
 <!-- ===== 下部パネル ===== -->
@@ -303,6 +301,7 @@
   <div class="info-row">
     <div class="gps-text" id="gps-text">GPS待機中...</div>
     <div class="move-text" id="move-text">-- km/h</div>
+
   </div>
 </div>
 
@@ -318,14 +317,10 @@
     trackUserLocation: true,
     showUserHeading: true
   }));
-  map.on('load', function() { 
-    console.log('Map loaded');
-    if (currentVehicle) restoreMarkers(); 
-  });
+  map.on('load', function() { restoreMarkers(); });
 
   // ===== 起動時にバイクモードを自動選択 =====
-  window.addEventListener('load', function() {
-    console.log('Page loaded - auto-selecting bike mode');
+  document.addEventListener('DOMContentLoaded', function() {
     selectVehicle('bike');
   });
 
@@ -365,21 +360,8 @@
   // ===== Firestore 保存・復元 =====
   function waitFirestore() {
     return new Promise(function(resolve) {
-      if (window._firestore) { 
-        console.log('Firestore already ready');
-        resolve(); 
-        return; 
-      }
-      console.log('Waiting for Firestore...');
-      window.addEventListener('firestore-ready', function() {
-        console.log('Firestore ready event received');
-        resolve();
-      }, { once: true });
-      // タイムアウト保護：5秒後は自動で続行
-      setTimeout(function() {
-        console.warn('Firestore timeout - continuing without it');
-        resolve();
-      }, 5000);
+      if (window._firestore) { resolve(); return; }
+      window.addEventListener('firestore-ready', resolve, { once: true });
     });
   }
 
@@ -387,10 +369,6 @@
     var last = markers[markers.length - 1];
     if (!last) return;
     await waitFirestore();
-    if (!window._firestore) {
-      console.warn('Firestore not available');
-      return;
-    }
     await window._firestore.save(currentVehicle, last._record);
     // キャッシュ更新
     if (!window._cachedRecords) window._cachedRecords = [];
@@ -399,16 +377,11 @@
 
   async function loadRecords() {
     await waitFirestore();
-    if (!window._firestore) {
-      console.warn('Firestore not available');
-      return [];
-    }
     return await window._firestore.load(currentVehicle);
   }
 
   async function restoreMarkers() {
     if (!currentVehicle) return;
-    console.log('Restoring markers for', currentVehicle);
     var records = await loadRecords();
     window._cachedRecords = records; // 近接チェック用にキャッシュ
     records.forEach(function(r) {
@@ -418,7 +391,6 @@
 
   // ===== Step1: 乗り物選択 =====
   function selectVehicle(vehicle) {
-    console.log('Selecting vehicle:', vehicle);
     currentVehicle = vehicle;
     var v = VEHICLES[vehicle];
 
@@ -427,6 +399,7 @@
     var permOverlay = document.getElementById('perm-overlay');
     permOverlay.classList.remove('hidden');
     document.getElementById('perm-icon').textContent = v.icon;
+    document.getElementById('perm-vehicle-name').textContent = v.label;
     document.getElementById('perm-desc').innerHTML =
       'タップしてセンサーと位置情報の権限を許可してください。<br><br>' +
       '移動を検知すると振動センサーが起動し、<br>' +
@@ -452,7 +425,6 @@
   }
 
   function backToSelect() {
-    console.log('Back to vehicle selection');
     // センサー停止
     if (sensorRunning) {
       window.removeEventListener('devicemotion', onMotion);
@@ -470,17 +442,12 @@
 
   // ===== GPS =====
   function startGPS() {
-    if (!navigator.geolocation) {
-      setStatus('error', 'Geolocation not supported');
-      return;
-    }
+    if (!navigator.geolocation) return;
 
     // 起動時に現在地を即取得して地図を移動
     setStatus('waiting', '現在地を取得中...');
-    console.log('Requesting current position...');
     navigator.geolocation.getCurrentPosition(
       function(pos) {
-        console.log('getCurrentPosition success:', pos.coords.latitude, pos.coords.longitude);
         currentPos = pos;
         map.setCenter([pos.coords.longitude, pos.coords.latitude]);
         map.setZoom(16);
@@ -492,18 +459,15 @@
         setStatus('waiting', v.label + 'モード：現在地取得完了 — 移動を検知するとセンサー起動');
       },
       function(err) {
-        console.error('getCurrentPosition error:', err);
         document.getElementById('gps-text').textContent = 'GPS取得失敗: ' + err.message;
         setStatus('error', 'GPS取得失敗 — 位置情報の権限を確認してください');
       },
-      { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
 
     // 継続的に位置を監視
-    console.log('Starting position watch...');
     navigator.geolocation.watchPosition(
       function(pos) {
-        console.log('watchPosition update:', pos.coords.latitude, pos.coords.longitude, pos.coords.speed);
         currentPos = pos;
         if (!map._located) {
           map.setCenter([pos.coords.longitude, pos.coords.latitude]);
@@ -515,10 +479,7 @@
         var kmh = pos.coords.speed !== null ? pos.coords.speed * 3.6 : 0;
         document.getElementById('move-text').textContent = kmh.toFixed(1) + ' km/h';
         var v = VEHICLES[currentVehicle];
-        if (!sensorRunning && kmh >= v.moveThreshKmh) {
-          console.log('Speed threshold reached, starting sensor');
-          startVibrationSensor();
-        }
+        if (!sensorRunning && kmh >= v.moveThreshKmh) startVibrationSensor();
         checkProximityWarning(pos.coords.latitude, pos.coords.longitude);
         // 移動中（3km/h以上）のみ地図を追従、停止中はスクロール自由
         if (kmh >= 3) {
@@ -528,11 +489,8 @@
           });
         }
       },
-      function(err) { 
-        console.error('watchPosition error:', err);
-        document.getElementById('gps-text').textContent = 'GPS監視失敗'; 
-      },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 30000 }
+      function() { document.getElementById('gps-text').textContent = 'GPS監視失敗'; },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 }
     );
   }
 
@@ -598,11 +556,10 @@
   }
 
   function speakWarning() {
-    // AudioContextでBluetoothを起こしてからMP3再生
+    // AudioContextでBluetoothを起こす
     if (audioCtx) {
       try {
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        // 無音バッファを鳴らしてBluetoothを起こす
         var buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
         var src = audioCtx.createBufferSource();
         src.buffer = buf;
@@ -615,11 +572,24 @@
     setTimeout(function() {
       if (!warningAudioEl) initWarningAudio();
       warningAudioEl.currentTime = 0;
+
+      // 音量を一時的に下げる（ダッキング効果）
+      // iOSではMediaSession APIで音楽との共存を制御
+      if ('mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.setActionHandler('pause', null);
+        } catch(e) {}
+      }
+
       var playPromise = warningAudioEl.play();
       if (playPromise) {
-        playPromise.catch(function(e) {
+        playPromise.then(function() {
+          // 再生終了後に通常状態に戻す
+          warningAudioEl.onended = function() {
+            warningAudioEl.onended = null;
+          };
+        }).catch(function(e) {
           console.warn('MP3再生失敗、Web Speech APIにフォールバック:', e);
-          // フォールバック：Web Speech API
           if (window.speechSynthesis) {
             window.speechSynthesis.cancel();
             var msg = new SpeechSynthesisUtterance('道が悪くなっています、ご注意ください');
@@ -632,12 +602,12 @@
     }, 150);
   }
 
-  // 画面上に警告バナーを表示
+  // 画面上に警告アラートを表示
   function showWarningBanner() {
     var banner = document.getElementById('warn-banner');
     if (!banner) return;
     banner.classList.add('show');
-    setTimeout(function() { banner.classList.remove('show'); }, 5000);
+    setTimeout(function() { banner.classList.remove('show'); }, 4000);
   }
 
   // ===== Service Worker登録（PWA） =====
@@ -654,7 +624,6 @@
 
   function startVibrationSensor() {
     if (sensorRunning) return;
-    console.log('Starting vibration sensor');
     vx = vy = vz = gravX = gravY = gravZ = 0;
     lastTime = null; eventCount = 0;
     sensorStartTime = Date.now();
@@ -693,7 +662,7 @@
     var warmedUp = (now2 - sensorStartTime) > SENSOR_WARMUP_MS;
     if (warmedUp && speed > v.threshold && now2 - lastDetect > 1000) {
       lastDetect = now2;
-      console.log('Vibration detected:', speed, 'at', currentPos);
+      lastWarnTime = now2; // 新規記録直後は近接警告をスキップ
       if (currentPos) addMarker(speed, currentPos.coords.latitude, currentPos.coords.longitude);
     }
   }
@@ -777,35 +746,18 @@
     markers = []; detectCount = 0;
     document.getElementById('count-badge').textContent = '0 件';
     await waitFirestore();
-    if (window._firestore) {
-      await window._firestore.clear(currentVehicle);
-    }
+    await window._firestore.clear(currentVehicle);
   }
 
   // ===== 権限取得 =====
   async function requestPermissions() {
-    console.log('Requesting permissions...');
-    // iOS 13+ でセンサー権限が必要
     if (typeof DeviceMotionEvent !== 'undefined' &&
         typeof DeviceMotionEvent.requestPermission === 'function') {
       try {
-        console.log('Requesting DeviceMotion permission...');
         var perm = await DeviceMotionEvent.requestPermission();
-        if (perm !== 'granted') { 
-          alert('センサーの権限を許可してください');
-          console.warn('DeviceMotion permission denied:', perm);
-          return; 
-        }
-        console.log('DeviceMotion permission granted');
-      } catch(e) { 
-        alert('権限エラー: ' + e.message);
-        console.error('DeviceMotion permission error:', e); 
-        return; 
-      }
-    } else {
-      console.log('DeviceMotionEvent.requestPermission not available - assuming permission granted');
+        if (perm !== 'granted') { alert('センサーの権限を許可してください'); return; }
+      } catch(e) { alert('権限エラー: ' + e.message); return; }
     }
-
     document.getElementById('perm-overlay').classList.add('hidden');
     initAudioContext(); // Bluetooth対応のためユーザー操作時に初期化
     initWarningAudio(); // MP3を事前ロード
