@@ -320,9 +320,7 @@
   map.on('load', function() { restoreMarkers(); });
 
   // ===== 起動時にバイクモードを自動選択 =====
-  document.addEventListener('DOMContentLoaded', function() {
-    selectVehicle('bike');
-  });
+  // スクリプト末尾で直接呼び出す（DOMContentLoadedより確実）
 
   // ===== 乗り物設定 =====
   var VEHICLES = {
@@ -796,6 +794,8 @@
       requestWakeLock();
     }
   });
+  // 自動起動
+  selectVehicle('bike');
 </script>
 </body>
 </html>
