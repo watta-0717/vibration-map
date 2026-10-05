@@ -219,7 +219,7 @@
 
 
 <!-- ===== Step2: 権限取得画面 ===== -->
-<div class="perm-overlay hidden" id="perm-overlay">
+<div class="perm-overlay" id="perm-overlay">
   <div class="perm-icon">🏍️</div>
   <div class="perm-title">振動<span>検知</span>マップ</div>
   <div class="perm-desc">
@@ -392,17 +392,9 @@
     currentVehicle = vehicle;
     var v = VEHICLES[vehicle];
 
-    document.getElementById('select-overlay').classList.add('hidden');
-
+    // 権限オーバーレイを表示
     var permOverlay = document.getElementById('perm-overlay');
-    permOverlay.classList.remove('hidden');
-    document.getElementById('perm-icon').textContent = v.icon;
-    document.getElementById('perm-vehicle-name').textContent = v.label;
-    document.getElementById('perm-desc').innerHTML =
-      'タップしてセンサーと位置情報の権限を許可してください。<br><br>' +
-      '移動を検知すると振動センサーが起動し、<br>' +
-      v.threshold.toFixed(1) + ' m/s 超の振動を地図に記録します。';
-    document.getElementById('perm-btn').style.background = v.color;
+    if (permOverlay) permOverlay.classList.remove('hidden');
 
     // 既存マーカーをクリアして該当乗り物のものを復元する準備
     document.querySelectorAll('.vib-marker').forEach(function(el) {
