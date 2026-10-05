@@ -234,7 +234,7 @@
 <div class="header">
   <div class="dot" id="dot"></div>
   <div class="mode-badge" id="mode-badge" style="display:none;"></div>
-  <div class="status-text" id="status-text">初期化中...</div>
+  <div class="status-text" id="status-text">「開始する」をタップ</div>
   <div class="count-badge" id="count-badge">0 件</div>
 
 </div>
@@ -440,10 +440,14 @@
 
   // ===== GPS =====
   function startGPS() {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setStatus('error', '位置情報未対応のブラウザです');
+      return;
+    }
 
-    // 起動時に現在地を即取得して地図を移動
     setStatus('waiting', '現在地を取得中...');
+
+    // 起動時に現在地を即取得
     navigator.geolocation.getCurrentPosition(
       function(pos) {
         currentPos = pos;
@@ -451,14 +455,17 @@
         map.setZoom(16);
         map._located = true;
         // GeolocateControlも自動起動
-        var geolocate = document.querySelector('.maplibregl-ctrl-geolocate');
-        if (geolocate) geolocate.click();
-        var v = VEHICLES[currentVehicle];
-        setStatus('waiting', v.label + 'モード：現在地取得完了 — 移動を検知するとセンサー起動');
+        setTimeout(function() {
+          var geolocate = document.querySelector('.maplibregl-ctrl-geolocate');
+          if (geolocate) geolocate.click();
+        }, 1000);
+        setStatus('active', '現在地取得完了 — 移動を検知するとセンサー起動');
+        document.getElementById('gps-text').textContent =
+          pos.coords.latitude.toFixed(5) + ', ' + pos.coords.longitude.toFixed(5);
       },
       function(err) {
-        document.getElementById('gps-text').textContent = 'GPS取得失敗: ' + err.message;
-        setStatus('error', 'GPS取得失敗 — 位置情報の権限を確認してください');
+        setStatus('error', 'GPS取得失敗: 位置情報を許可してください');
+        document.getElementById('gps-text').textContent = 'GPS取得失敗';
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
@@ -757,13 +764,12 @@
       } catch(e) { alert('権限エラー: ' + e.message); return; }
     }
     document.getElementById('perm-overlay').classList.add('hidden');
-    initAudioContext(); // Bluetooth対応のためユーザー操作時に初期化
-    initWarningAudio(); // MP3を事前ロード
+    initAudioContext();
+    initWarningAudio();
+    setStatus('waiting', 'GPS取得中...');
     restoreMarkers();
     startGPS();
     requestWakeLock();
-    var v = VEHICLES[currentVehicle];
-    setStatus('waiting', v.label + 'モード：GPS取得中 — 移動を検知するとセンサー起動');
   }
 
   // ===== 画面スリープ防止（Wake Lock API） =====
@@ -794,8 +800,16 @@
       requestWakeLock();
     }
   });
-  // 自動起動
+  // 自動起動（ページ読み込み時）
   selectVehicle('bike');
+
+  // ページ再読み込み時は完全リセット
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted) {
+      // bfcache（戻る/進むキャッシュ）から復元された場合も再起動
+      window.location.reload();
+    }
+  });
 </script>
 </body>
 </html>
