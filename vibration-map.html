@@ -756,6 +756,7 @@
 
   // ===== 権限取得 =====
   async function requestPermissions() {
+    // Step1: モーションセンサーの権限（iOS Safari）
     if (typeof DeviceMotionEvent !== 'undefined' &&
         typeof DeviceMotionEvent.requestPermission === 'function') {
       try {
@@ -763,9 +764,27 @@
         if (perm !== 'granted') { alert('センサーの権限を許可してください'); return; }
       } catch(e) { alert('権限エラー: ' + e.message); return; }
     }
-    document.getElementById('perm-overlay').classList.add('hidden');
+
+    // Step2: 位置情報の権限（ユーザー操作のタイミングで要求）
+    var geoGranted = await new Promise(function(resolve) {
+      if (!navigator.geolocation) { resolve(false); return; }
+      navigator.geolocation.getCurrentPosition(
+        function() { resolve(true); },
+        function(err) {
+          alert('位置情報の権限を許可してください（設定 → Safari → 位置情報 → このAppの使用中）');
+          resolve(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+    if (!geoGranted) return;
+
+    // Step3: AudioContextの初期化（ユーザー操作タイミングで実行）
     initAudioContext();
     initWarningAudio();
+
+    // オーバーレイを閉じて起動
+    document.getElementById('perm-overlay').classList.add('hidden');
     setStatus('waiting', 'GPS取得中...');
     restoreMarkers();
     startGPS();
